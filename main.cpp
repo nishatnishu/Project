@@ -10,6 +10,7 @@ const int GRID_SIZE = 20;
 const int INITIAL_LENGTH = 5;
 const int NUM_OBSTACLES = 5;
 const int BONUS_FOOD_INTERVAL = 5;
+const int BONUS_FOOD_DURATION = 5000; // milliseconds
 
 SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
@@ -31,6 +32,7 @@ struct Obstacle {
 struct BonusFood {
     int x, y;
     bool active;
+    Uint32 spendtime; // timer bonusfood
 };
 
 Snake snake;
@@ -40,15 +42,15 @@ vector<Obstacle> obstacles;
 int score = 0;
 int foodsEaten = 0;
 
-// 5.circle shapee
+// 5. circle shape
 void filledCircleRGBA(SDL_Renderer* renderer, int cx, int cy, int radius, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
 void initialize() {
     SDL_Init(SDL_INIT_VIDEO);
-    TTF_Init();  
+    TTF_Init();
     window = SDL_CreateWindow("Snake Game", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    font = TTF_OpenFont("nishat.ttf", 24);  
+    font = TTF_OpenFont("nishat.ttf", 24);
 
     snake.body.push_back({SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2});
     snake.direction = 'R';
@@ -57,7 +59,7 @@ void initialize() {
     food.y = rand() % (SCREEN_HEIGHT / GRID_SIZE) * GRID_SIZE;
 
     bonusFood.active = false;
-//1.obstaclessss
+    // 1. obstacles
     for (int i = 0; i < NUM_OBSTACLES; ++i) {
         Obstacle obstacle;
         obstacle.x = rand() % (SCREEN_WIDTH / GRID_SIZE) * GRID_SIZE;
@@ -79,12 +81,15 @@ void generateFood() {
     food.y = rand() % (SCREEN_HEIGHT / GRID_SIZE) * GRID_SIZE;
 }
 
+// 3. bonus food
 void generateBonusFood() {
     bonusFood.x = rand() % (SCREEN_WIDTH / GRID_SIZE) * GRID_SIZE;
     bonusFood.y = rand() % (SCREEN_HEIGHT / GRID_SIZE) * GRID_SIZE;
     bonusFood.active = true;
+    bonusFood.spendtime = SDL_GetTicks(); 
 }
-//1.collisiojn r obstacle 
+
+// 1. collision with obstacle
 bool checkCollision(int x, int y) {
     for (const auto& segment : snake.body) {
         if (segment.first == x && segment.second == y) {
@@ -128,7 +133,7 @@ void update() {
 
     if (newHead.first == food.x && newHead.second == food.y) {
         generateFood();
-        score += 10;  // Increment the score when the snake eats food
+        score += 10;
         foodsEaten++;
         if (foodsEaten % BONUS_FOOD_INTERVAL == 0) {
             generateBonusFood();
@@ -140,44 +145,62 @@ void update() {
     } else {
         snake.body.pop_back();
     }
+
+    // 4. bonus food timer
+    if (bonusFood.active && SDL_GetTicks() - bonusFood.spendtime > BONUS_FOOD_DURATION) {
+        bonusFood.active = false;
+    }
 }
 
 void render() {
-    SDL_SetRenderDrawColor(renderer, 10, 100, 200, 255);
+   // SDL_SetRenderDrawColor(renderer, 10, 100, 200, 255);//blue
+    SDL_SetRenderDrawColor(renderer,0,0,0,255);//black backgound
     SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);//whitee snake
 
-    // changing the snake color and shapeee 
+    // changing the snake color and shape(pinkish hobe)
     for (int i = 0; i < snake.body.size(); ++i) {
         int colorValue = 255 - i * 10;
         SDL_SetRenderDrawColor(renderer, 255, colorValue, colorValue, 255);
+
+        if (i == 0) // head
+        {
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // red
+        }
+
         int radius = GRID_SIZE / 2;
         int centerX = snake.body[i].first + radius;
         int centerY = snake.body[i].second + radius;
         filledCircleRGBA(renderer, centerX, centerY, radius, 255, colorValue, colorValue, 255);
     }
 
-    //fooood
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    // food
+    SDL_SetRenderDrawColor(renderer, 0,255, 0, 255);
     SDL_Rect foodRect = {food.x, food.y, GRID_SIZE, GRID_SIZE};
     SDL_RenderFillRect(renderer, &foodRect);
 
-    //3.bonusfooooood
+    // 3. bonus food
     if (bonusFood.active) {
-        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);//yellow
         SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, GRID_SIZE, GRID_SIZE};
         SDL_RenderFillRect(renderer, &bonusFoodRect);
     }
 
-    //1.Obstacleeeeee
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    // 1. Obstacle
+    //SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);//black
+    SDL_SetRenderDrawColor(renderer,10,100,200,255);
+    int obstacleSizex= GRID_SIZE*5;//obstacle size wiil increse
+    int obstacleSizey=GRID_SIZE*1.5;//y cordinate e 
+
+
     for (const auto& obstacle : obstacles) {
-        SDL_Rect obstacleRect = {obstacle.x, obstacle.y, GRID_SIZE, GRID_SIZE};
+        //SDL_Rect obstacleRect = {obstacle.x, obstacle.y, GRID_SIZE, GRID_SIZE};
+        SDL_Rect obstacleRect={obstacle.x,obstacle.y,obstacleSizex,obstacleSizey};//for increasing obs,. size
         SDL_RenderFillRect(renderer, &obstacleRect);
     }
 
-    // 2.for score
-    SDL_Color textColor = {255, 255, 255, 255};
+    // 2. score
+    SDL_Color textColor = {255, 255, 255, 255};//white
     string scoreText = "Score: " + to_string(score);
     SDL_Surface* textSurface = TTF_RenderText_Solid(font, scoreText.c_str(), textColor);
     SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -189,7 +212,8 @@ void render() {
 
     SDL_RenderPresent(renderer);
 }
-//5.after changing the snake color and spapeee
+
+// 5. after changing the snake color and shape
 void filledCircleRGBA(SDL_Renderer* renderer, int cx, int cy, int radius, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
     for (int dy = 0; dy <= radius; dy++) {
         for (int dx = 0; dx <= radius; dx++) {
