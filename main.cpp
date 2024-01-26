@@ -41,6 +41,7 @@ BonusFood bonusFood;
 vector<Obstacle> obstacles;
 int score = 0;
 int foodsEaten = 0;
+bool gameOver= false;//6.gameoverr
 
 // 5. circle shape
 void filledCircleRGBA(SDL_Renderer* renderer, int cx, int cy, int radius, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
@@ -104,7 +105,30 @@ bool checkCollision(int x, int y) {
 
     return false;
 }
+//6.GameOver: 
+void displayGameOver()
+{
+    //6.gameover
+    SDL_Color textColor ={255,0,0,255};//reD
+    string gameOverText="GAME OVER";
+    SDL_Surface* gameOverSurface =TTF_RenderText_Solid(font,gameOverText.c_str(),textColor);
+    SDL_Texture* gameOverTexture=SDL_CreateTextureFromSurface(renderer,gameOverSurface);
+    SDL_FreeSurface(gameOverSurface);
+    SDL_Rect gameOverRect={SCREEN_WIDTH/2-100,SCREEN_HEIGHT/2-20,200,40};
+    SDL_RenderCopy(renderer,gameOverTexture,nullptr, &gameOverRect);
+    SDL_DestroyTexture(gameOverTexture);
+    //6.diplaying score: 
+    SDL_Color scoreColor ={255,255,255,255};//white
+    string scoreText="Score: "+ to_string(score);
+    SDL_Surface* scoreSurface =TTF_RenderText_Solid(font,scoreText.c_str(),scoreColor);
+    SDL_Texture* scoreTexture= SDL_CreateTextureFromSurface(renderer,scoreSurface);
+    SDL_FreeSurface(scoreSurface);
+    SDL_Rect scoreRect ={SCREEN_WIDTH/2-50,SCREEN_HEIGHT/2+20,100,30};
+    SDL_RenderCopy(renderer,scoreTexture,nullptr, &scoreRect);
+    SDL_RenderPresent(renderer);
 
+
+}
 void update() {
     pair<int, int> newHead = snake.body.front();
 
@@ -126,7 +150,9 @@ void update() {
     // collision with obstacles or boundaries
     if (newHead.first < 0 || newHead.first >= SCREEN_WIDTH || newHead.second < 0 || newHead.second >= SCREEN_HEIGHT || checkCollision(newHead.first, newHead.second)) {
         close();
-        exit(1);
+        cout<<"GAME OVER. YOUr Score: "<<score<<endl;
+        gameOver=true;
+        //exit(1);
     }
 
     snake.body.insert(snake.body.begin(), newHead);
@@ -159,8 +185,9 @@ void render() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);//whitee snake
 
     // changing the snake color and shape(pinkish hobe)
-    for (int i = 0; i < snake.body.size(); ++i) {
-        int colorValue = 255 - i * 10;
+   for (int i = 0; i < snake.body.size(); ++i) {
+   // SDL_SetRenderDrawColor(renderer,255,255,255,255);//white snake
+        int colorValue = 255 - i * 10;//white+pinkk..
         SDL_SetRenderDrawColor(renderer, 255, colorValue, colorValue, 255);
 
         if (i == 0) // head
@@ -171,7 +198,8 @@ void render() {
         int radius = GRID_SIZE / 2;
         int centerX = snake.body[i].first + radius;
         int centerY = snake.body[i].second + radius;
-        filledCircleRGBA(renderer, centerX, centerY, radius, 255, colorValue, colorValue, 255);
+       // filledCircleRGBA(renderer, centerX, centerY, radius, 255, 255,255, 255);
+      filledCircleRGBA(renderer, centerX, centerY, radius, 255, colorValue, colorValue, 255);//pinshhh
     }
 
     // food
@@ -237,8 +265,8 @@ int main(int argc, char* argv[])
 
     SDL_Event e;
     bool quit = false;
-
-    while (!quit) {
+  // while (!quit){
+  while(!quit && !gameOver) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
@@ -262,8 +290,14 @@ int main(int argc, char* argv[])
 
         update();
         render();
-
+     //6.gameover....
+     if(gameOver){
+        displayGameOver();
+        SDL_Delay(2000);
+     }else { 
         SDL_Delay(200);
+     }
+       // SDL_Delay(200);
     }
 
     close();
