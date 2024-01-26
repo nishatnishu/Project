@@ -27,6 +27,7 @@ struct Food {
 
 struct Obstacle {
     int x, y;
+    int speedX, speedY;
 };
 
 struct BonusFood {
@@ -41,7 +42,6 @@ BonusFood bonusFood;
 vector<Obstacle> obstacles;
 int score = 0;
 int foodsEaten = 0;
-bool gameOver= false;//6.gameoverr
 
 // 5. circle shape
 void filledCircleRGBA(SDL_Renderer* renderer, int cx, int cy, int radius, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
@@ -61,10 +61,13 @@ void initialize() {
 
     bonusFood.active = false;
     // 1. obstacles
+    // Reduced the number of obstacles to 4
     for (int i = 0; i < NUM_OBSTACLES; ++i) {
         Obstacle obstacle;
         obstacle.x = rand() % (SCREEN_WIDTH / GRID_SIZE) * GRID_SIZE;
         obstacle.y = rand() % (SCREEN_HEIGHT / GRID_SIZE) * GRID_SIZE;
+        obstacle.speedX = 2 + rand() % 5; // Random speed between 2 and 6
+        obstacle.speedY = 2 + rand() % 5; // Random speed between 2 and 6
         obstacles.push_back(obstacle);
     }
 }
@@ -87,7 +90,7 @@ void generateBonusFood() {
     bonusFood.x = rand() % (SCREEN_WIDTH / GRID_SIZE) * GRID_SIZE;
     bonusFood.y = rand() % (SCREEN_HEIGHT / GRID_SIZE) * GRID_SIZE;
     bonusFood.active = true;
-    bonusFood.spendtime = SDL_GetTicks(); 
+    bonusFood.spendtime = SDL_GetTicks();
 }
 
 // 1. collision with obstacle
@@ -105,30 +108,7 @@ bool checkCollision(int x, int y) {
 
     return false;
 }
-//6.GameOver: 
-void displayGameOver()
-{
-    //6.gameover
-    SDL_Color textColor ={255,0,0,255};//reD
-    string gameOverText="GAME OVER";
-    SDL_Surface* gameOverSurface =TTF_RenderText_Solid(font,gameOverText.c_str(),textColor);
-    SDL_Texture* gameOverTexture=SDL_CreateTextureFromSurface(renderer,gameOverSurface);
-    SDL_FreeSurface(gameOverSurface);
-    SDL_Rect gameOverRect={SCREEN_WIDTH/2-100,SCREEN_HEIGHT/2-20,200,40};
-    SDL_RenderCopy(renderer,gameOverTexture,nullptr, &gameOverRect);
-    SDL_DestroyTexture(gameOverTexture);
-    //6.diplaying score: 
-    SDL_Color scoreColor ={255,255,255,255};//white
-    string scoreText="Score: "+ to_string(score);
-    SDL_Surface* scoreSurface =TTF_RenderText_Solid(font,scoreText.c_str(),scoreColor);
-    SDL_Texture* scoreTexture= SDL_CreateTextureFromSurface(renderer,scoreSurface);
-    SDL_FreeSurface(scoreSurface);
-    SDL_Rect scoreRect ={SCREEN_WIDTH/2-50,SCREEN_HEIGHT/2+20,100,30};
-    SDL_RenderCopy(renderer,scoreTexture,nullptr, &scoreRect);
-    SDL_RenderPresent(renderer);
 
-
-}
 void update() {
     pair<int, int> newHead = snake.body.front();
 
@@ -147,12 +127,31 @@ void update() {
             break;
     }
 
+    // 7. snake back
+    if (newHead.first < 0) {
+        newHead.first = SCREEN_WIDTH - GRID_SIZE;
+    } else if (newHead.first >= SCREEN_WIDTH) {
+        newHead.first = 0;
+    }
+
+    if (newHead.second < 0) {
+        newHead.second = SCREEN_HEIGHT - GRID_SIZE;
+    } else if (newHead.second >= SCREEN_HEIGHT) {
+        newHead.second = 0;
+    }
+
     // collision with obstacles or boundaries
-    if (newHead.first < 0 || newHead.first >= SCREEN_WIDTH || newHead.second < 0 || newHead.second >= SCREEN_HEIGHT || checkCollision(newHead.first, newHead.second)) {
+    if (checkCollision(newHead.first, newHead.second)) {
         close();
-        cout<<"GAME OVER. YOUr Score: "<<score<<endl;
-        gameOver=true;
-        //exit(1);
+        exit(1);
+    }
+    // Check collision with obstacles
+    for (const auto& obstacle : obstacles) {
+        if (newHead.first < obstacle.x + GRID_SIZE && newHead.first + GRID_SIZE > obstacle.x &&
+            newHead.second < obstacle.y + GRID_SIZE && newHead.second + GRID_SIZE > obstacle.y) {
+            close();
+            exit(1);
+        }
     }
 
     snake.body.insert(snake.body.begin(), newHead);
@@ -176,18 +175,30 @@ void update() {
     if (bonusFood.active && SDL_GetTicks() - bonusFood.spendtime > BONUS_FOOD_DURATION) {
         bonusFood.active = false;
     }
+
+    // Update obstacle positions
+    for (auto& obstacle : obstacles) {
+        obstacle.x -= obstacle.speedX;
+        obstacle.y -= obstacle.speedY;
+
+        if (obstacle.x + GRID_SIZE < 0 || obstacle.x > SCREEN_WIDTH || obstacle.y + GRID_SIZE < 0 || obstacle.y > SCREEN_HEIGHT) {
+            obstacle.x = rand() % (SCREEN_WIDTH / GRID_SIZE) * GRID_SIZE;
+            obstacle.y = rand() % (SCREEN_HEIGHT / GRID_SIZE) * GRID_SIZE;
+            obstacle.speedX = 2 + rand() % 5;
+            obstacle.speedY = 2 + rand() % 5;
+        }
+    }
 }
 
 void render() {
-   // SDL_SetRenderDrawColor(renderer, 10, 100, 200, 255);//blue
-    SDL_SetRenderDrawColor(renderer,0,0,0,255);//black backgound
+    // SDL_SetRenderDrawColor(renderer, 10, 100, 200, 255);//blue
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black background
     SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);//whitee snake
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // whitee snake
 
-    // changing the snake color and shape(pinkish hobe)
-   for (int i = 0; i < snake.body.size(); ++i) {
-   // SDL_SetRenderDrawColor(renderer,255,255,255,255);//white snake
-        int colorValue = 255 - i * 10;//white+pinkk..
+    // changing the snake color and shape(pinkishh)
+    for (int i = 0; i < snake.body.size(); ++i) {
+        int colorValue = 255 - i * 10;
         SDL_SetRenderDrawColor(renderer, 255, colorValue, colorValue, 255);
 
         if (i == 0) // head
@@ -198,37 +209,35 @@ void render() {
         int radius = GRID_SIZE / 2;
         int centerX = snake.body[i].first + radius;
         int centerY = snake.body[i].second + radius;
-       // filledCircleRGBA(renderer, centerX, centerY, radius, 255, 255,255, 255);
-      filledCircleRGBA(renderer, centerX, centerY, radius, 255, colorValue, colorValue, 255);//pinshhh
+        filledCircleRGBA(renderer, centerX, centerY, radius, 255, colorValue, colorValue, 255);
     }
 
     // food
-    SDL_SetRenderDrawColor(renderer, 0,255, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
     SDL_Rect foodRect = {food.x, food.y, GRID_SIZE, GRID_SIZE};
     SDL_RenderFillRect(renderer, &foodRect);
 
     // 3. bonus food
     if (bonusFood.active) {
-        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);//yellow
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255); // yellow
         SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, GRID_SIZE, GRID_SIZE};
         SDL_RenderFillRect(renderer, &bonusFoodRect);
     }
 
     // 1. Obstacle
-    //SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);//black
-    SDL_SetRenderDrawColor(renderer,10,100,200,255);
-    int obstacleSizex= GRID_SIZE*5;//obstacle size wiil increse
-    int obstacleSizey=GRID_SIZE*1.5;//y cordinate e 
-
+    // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);//black
+    SDL_SetRenderDrawColor(renderer, 10, 100, 200, 255);
+    int obstacleSizex = GRID_SIZE * 12; // obstacle size will increase
+    int obstacleSizey = GRID_SIZE * 1.5; // y coordinate e
 
     for (const auto& obstacle : obstacles) {
-        //SDL_Rect obstacleRect = {obstacle.x, obstacle.y, GRID_SIZE, GRID_SIZE};
-        SDL_Rect obstacleRect={obstacle.x,obstacle.y,obstacleSizex,obstacleSizey};//for increasing obs,. size
+        // SDL_Rect obstacleRect = {obstacle.x, obstacle.y, GRID_SIZE, GRID_SIZE};
+        SDL_Rect obstacleRect = {obstacle.x, obstacle.y, obstacleSizex, obstacleSizey}; // for increasing obs,. size
         SDL_RenderFillRect(renderer, &obstacleRect);
     }
 
     // 2. score
-    SDL_Color textColor = {255, 255, 255, 255};//white
+    SDL_Color textColor = {255, 255, 255, 255}; // white
     string scoreText = "Score: " + to_string(score);
     SDL_Surface* textSurface = TTF_RenderText_Solid(font, scoreText.c_str(), textColor);
     SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -265,24 +274,28 @@ int main(int argc, char* argv[])
 
     SDL_Event e;
     bool quit = false;
-  // while (!quit){
-  while(!quit && !gameOver) {
+
+    while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
             } else if (e.type == SDL_KEYDOWN) {
                 switch (e.key.keysym.sym) {
                     case SDLK_UP:
-                        if (snake.direction != 'D') snake.direction = 'U';
+                        if (snake.direction != 'D')
+                            snake.direction = 'U';
                         break;
                     case SDLK_DOWN:
-                        if (snake.direction != 'U') snake.direction = 'D';
+                        if (snake.direction != 'U')
+                            snake.direction = 'D';
                         break;
                     case SDLK_LEFT:
-                        if (snake.direction != 'R') snake.direction = 'L';
+                        if (snake.direction != 'R')
+                            snake.direction = 'L';
                         break;
                     case SDLK_RIGHT:
-                        if (snake.direction != 'L') snake.direction = 'R';
+                        if (snake.direction != 'L')
+                            snake.direction = 'R';
                         break;
                 }
             }
@@ -290,14 +303,8 @@ int main(int argc, char* argv[])
 
         update();
         render();
-     //6.gameover....
-     if(gameOver){
-        displayGameOver();
-        SDL_Delay(2000);
-     }else { 
+
         SDL_Delay(200);
-     }
-       // SDL_Delay(200);
     }
 
     close();
